@@ -38,14 +38,15 @@ Maybe<ExitCode> SpinEventLoopInternal(Environment* env) {
         node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START);
     do {
       if (env->is_stopping()) break;
+       // 1. 运行 libuv 事件循环
       uv_run(env->event_loop(), UV_RUN_DEFAULT);
       if (env->is_stopping()) break;
-
+     // 2. 排空平台任务队列 (Promise 微任务等)
       platform->DrainTasks(isolate);
-
+     // 3. 检查是否还有活跃的事件
       more = uv_loop_alive(env->event_loop());
       if (more && !env->is_stopping()) continue;
-
+      // 4. 发出 beforeExit 事件
       if (EmitProcessBeforeExit(env).IsNothing())
         break;
 

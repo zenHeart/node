@@ -598,14 +598,14 @@ void NodePlatform::DrainTasks(Isolate* isolate) {
     // which should block the main thread until they are completed, as the
     // documentation suggets. As a compromise, we currently only block on
     // user-blocking tasks to reduce the chance of deadlocks while making sure
-    // that criticl user-blocking tasks are not lost.
+    // that criticl user-blocking tasks are not lost.  // 1. 阻塞等待 worker 线程任务完成
     worker_thread_task_runner_->BlockingDrain();
-  } while (per_isolate->FlushForegroundTasksInternal());
+  } while (per_isolate->FlushForegroundTasksInternal());   // 2. 刷新前台任务队列 (Promise 微任务)
 }
 
 bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
   bool did_work = false;
-
+  // 1. 处理延迟任务队列 (setTimeout/setInterval)
   auto delayed_tasks_to_schedule = foreground_delayed_tasks_.Lock().PopAll();
   while (!delayed_tasks_to_schedule.empty()) {
     // We have to use const_cast because std::priority_queue::top() does not
@@ -621,7 +621,7 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
     delayed->timer.data = static_cast<void*>(delayed.get());
     uv_timer_init(loop_, &delayed->timer);
     // Timers may not guarantee queue ordering of events with the same delay
-    // if the delay is non-zero. This should not be a problem in practice.
+    // if the delay is non-zero. This should not be a problem in practice.//转换为 libuv timer
     uv_timer_start(&delayed->timer, RunForegroundTask, delay_millis, 0);
     uv_unref(reinterpret_cast<uv_handle_t*>(&delayed->timer));
     uv_handle_count_++;
@@ -636,7 +636,7 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
                    });
         });
   }
-
+  // 2. 处理立即任务队列 (Promise 微任务) 
   TaskQueue<TaskQueueEntry>::PriorityQueue tasks;
   {
     auto locked = foreground_tasks_.Lock();
