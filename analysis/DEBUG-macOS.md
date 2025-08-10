@@ -30,7 +30,7 @@ cd /Users/gufeng/self/node
 ./configure --debug --ninja
 
 # 编译 (使用 ccache 加速)
-make -j$(sysctl -n hw.ncpu)
+make JOBS=$(sysctl -n hw.ncpu)
 
 # 验证编译结果
 ls -la out/Debug/node
