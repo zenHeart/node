@@ -1,15 +1,10 @@
 /**
  * Node.js 事件循环调试验证脚本
  * 用于断点调试验证事件循环执行顺序和流程
+ * 
+ * 使用 Node.js 原生的 --enable-source-maps 支持
+ * 无需额外安装 source-map-support 包
  */
-
-// 启用源码映射支持 (如果可用)
-try {
-  require('source-map-support/register');
-} catch (err) {
-  // source-map-support 不可用时忽略错误
-  console.log('注意: source-map-support 未安装，跳过源码映射');
-}
 
 // 调试标志
 const DEBUG = true;

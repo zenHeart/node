@@ -8,8 +8,5 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "source-map-support": "^0.5.21"
-  }
+  "description": ""
 }
