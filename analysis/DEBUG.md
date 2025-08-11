@@ -1,11 +1,53 @@
-# Node.js 事件循环调试指南
+# Node.js 调试完整指南
 
 ## 概述
-本指南提供了多种调试 Node.js 事件循环的方法，包括 JavaScript 层面和 C++ 源码层面的调试。
+本指南提供了 Node.js 从启动到事件循环运行的完整调试方法，涵盖 JavaScript 层面、C++ 源码层面以及混合调试，支持 macOS、Linux 和 Windows 平台。
+
+## 系统要求
+
+### macOS
+- macOS 10.14+ 
+- Xcode Command Line Tools
+- VS Code with C/C++ extension
+- lldb 调试器
+
+### Linux
+- Ubuntu 18.04+ / CentOS 7+
+- build-essential
+- gdb 调试器
+
+### Windows
+- Visual Studio 2019+
+- Windows SDK
+- VS Code with C/C++ extension
 
 ## 调试环境准备
 
 ### 1. 安装调试依赖
+
+#### macOS
+```bash
+# 安装 Xcode Command Line Tools
+xcode-select --install
+
+# 安装 Homebrew (如果还没有)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# 安装编译依赖
+brew install python3 ccache ninja
+```
+
+#### Linux
+```bash
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install build-essential python3 ccache ninja-build gdb
+
+# CentOS/RHEL
+sudo yum install gcc-c++ python3 ccache ninja-build gdb
+```
+
+#### JavaScript 依赖
 ```bash
 # 安装源码映射支持
 npm install source-map-support
@@ -14,15 +56,94 @@ npm install source-map-support
 npm install --save-dev @types/node
 ```
 
-### 2. 编译 Node.js (用于 C++ 调试)
-```bash
-# 编译带调试信息的 Node.js
-./configure --debug
-make -j4
+### 2. 编译 Node.js
 
-# 或者编译 Release 版本
-./configure
-make -j4
+#### 调试版本编译
+```bash
+# 配置调试版本
+./configure --debug --ninja
+
+# 编译 (macOS)
+make JOBS=$(sysctl -n hw.ncpu)
+
+# 编译 (Linux)
+make JOBS=$(nproc)
+
+# 验证编译结果
+ls -la out/Debug/node
+./out/Debug/node --version
+```
+
+#### Release 版本编译
+```bash
+# 配置 Release 版本
+./configure --ninja
+
+# 编译
+make JOBS=$(sysctl -n hw.ncpu)  # macOS
+make JOBS=$(nproc)              # Linux
+```
+
+### 3. 调试器配置
+
+#### macOS - lldb 配置
+创建 `~/.lldbinit` 文件：
+```bash
+cat > ~/.lldbinit << 'EOF'
+# 设置源码路径
+settings set target.source-map /usr/include /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+
+# 启用彩色输出
+settings set use-color true
+
+# 设置历史记录
+settings set interpreter.save-session-on-quit true
+
+# 自定义断点别名
+command alias bnode breakpoint set --name
+command alias bfile breakpoint set --file
+EOF
+```
+
+#### Linux - gdb 配置
+创建 `~/.gdbinit` 文件：
+```bash
+cat > ~/.gdbinit << 'EOF'
+set print pretty on
+set print array on
+set print array-indexes on
+set history save on
+set confirm off
+EOF
+```
+
+## Node.js 启动和事件循环调试
+
+### 主要调试断点链路
+
+#### 1. Node.js 启动链路
+```
+main() 
+  → node::Start() 
+  → StartInternal() 
+  → NodeMainInstance::Run()
+  → SpinEventLoopInternal()
+```
+
+**关键断点位置**:
+- `src/node_main.cc:96` - `main(int argc, char* argv[])` - 程序入口点
+- `src/node.cc:1548` - `int Start(int argc, char** argv)` - 启动处理
+- `src/node.cc:1485` - `static ExitCode StartInternal(int argc, char** argv)` - 内部启动逻辑
+- `src/node_main_instance.cc:88` - `ExitCode NodeMainInstance::Run()` - 主实例运行
+
+#### 2. 事件循环核心链路
+```
+SpinEventLoopInternal()
+  ├── uv_run(env->event_loop(), UV_RUN_DEFAULT)     // libuv 事件循环
+  ├── platform->DrainTasks(isolate)                // 平台任务处理
+  │   └── FlushForegroundTasksInternal()           // 前台任务刷新
+  ├── uv_loop_alive(env->event_loop())             // 检查循环存活
+  └── EmitProcessBeforeExit(env)                   // beforeExit 事件
 ```
 
 ## 调试方法
@@ -63,24 +184,82 @@ setTimeout(() => {
 
 ### 2. C++ 源码层面调试
 
+#### 断点 1: SpinEventLoopInternal (主事件循环)
+**位置**: `src/api/embed_helpers.cc:22`
+```cpp
+Maybe<ExitCode> SpinEventLoopInternal(Environment* env) {
+  do {
+    // 1. 运行 libuv 事件循环
+    uv_run(env->event_loop(), UV_RUN_DEFAULT);  // 断点 A
+    
+    // 2. 排空平台任务队列 (Promise 微任务等)
+    platform->DrainTasks(isolate);             // 断点 B
+    
+    // 3. 检查是否还有活跃的事件
+    more = uv_loop_alive(env->event_loop());   // 断点 C
+    
+    // 4. 发出 beforeExit 事件
+    if (EmitProcessBeforeExit(env).IsNothing()) break;
+    
+  } while (more == true && !env->is_stopping());
+}
+```
+
+#### 断点 2: DrainTasks (平台任务排空)
+**位置**: `src/node_platform.cc:578`
+```cpp
+void NodePlatform::DrainTasks(Isolate* isolate) {
+  do {
+    // 1. 阻塞等待 worker 线程任务完成
+    worker_thread_task_runner_->BlockingDrain();  // 断点 D
+    
+    // 2. 刷新前台任务队列 (Promise 微任务)
+  } while (per_isolate->FlushForegroundTasksInternal()); // 断点 E
+}
+```
+
+#### 断点 3: FlushForegroundTasksInternal (前台任务刷新)
+**位置**: `src/node_platform.cc:606`
+```cpp
+bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
+  // 1. 处理延迟任务队列 (setTimeout/setInterval)
+  auto delayed_tasks = foreground_delayed_tasks_.Lock().PopAll(); // 断点 F
+  
+  // 2. 处理立即任务队列 (Promise 微任务)
+  auto tasks = foreground_tasks_.Lock().PopAll(); // 断点 G
+  
+  while (!tasks.empty()) {
+    RunForegroundTask(std::move(entry->task));
+  }
+  
+  return did_work;
+}
+```
+
 #### 使用 lldb 调试 (macOS)
 ```bash
 # 编译带调试信息的 Node.js
-./configure --debug
-make -j4
+./configure --debug --ninja
+make JOBS=$(sysctl -n hw.ncpu)
 
 # 启动 lldb 调试
 lldb ./out/Debug/node
 (lldb) target create "./out/Debug/node"
-(lldb) settings set -- target.run-args  "analysis/debug-event-loop.js"
+(lldb) settings set -- target.run-args "analysis/debug-event-loop.js"
 
 # 设置关键断点
 (lldb) breakpoint set --name SpinEventLoopInternal
-(lldb) breakpoint set --name NodePlatform::DrainTasks  
-(lldb) breakpoint set --name PerIsolatePlatformData::FlushForegroundTasksInternal
+(lldb) breakpoint set --name node::NodePlatform::DrainTasks  
+(lldb) breakpoint set --name node::PerIsolatePlatformData::FlushForegroundTasksInternal
 
 # 开始调试
 (lldb) run
+
+# 调试命令
+(lldb) thread backtrace        # 查看调用栈
+(lldb) frame variable          # 查看局部变量
+(lldb) continue               # 继续执行
+(lldb) step                   # 单步执行
 ```
 
 #### 使用 gdb 调试 (Linux)
@@ -96,11 +275,18 @@ gdb ./out/Debug/node
 
 # 开始调试
 (gdb) run
+
+# 调试命令
+(gdb) backtrace               # 查看调用栈
+(gdb) info locals             # 查看局部变量
+(gdb) continue               # 继续执行
+(gdb) step                   # 单步执行
 ```
 
 #### VS Code C++ 调试
 使用 `.vscode/launch.json` 中的配置：
-- **"调试 libuv 事件循环 (Native)"**: C++ 源码调试
+- **"调试 libuv 事件循环 (Native - macOS)"**: macOS C++ 源码调试
+- **"调试 libuv 事件循环 (Native - Linux/Windows)"**: Linux/Windows C++ 源码调试
 
 ### 3. 混合调试 (JavaScript + C++)
 
@@ -109,8 +295,11 @@ gdb ./out/Debug/node
 # 启动带 inspector 的 Node.js
 node --inspect-brk analysis/debug-event-loop.js
 
-# 在另一个终端连接 lldb
+# 在另一个终端连接 lldb (macOS)
 lldb -p $(pgrep node)
+
+# 在另一个终端连接 gdb (Linux)
+gdb -p $(pgrep node)
 ```
 
 #### Chrome DevTools 调试
@@ -122,49 +311,89 @@ node --inspect analysis/debug-event-loop.js
 # 点击 "inspect" 连接到 Node.js 进程
 ```
 
-## 关键调试点
+## 调试验证步骤
 
-### 1. 事件循环主入口
-**文件**: `src/api/embed_helpers.cc`
-**函数**: `SpinEventLoopInternal`
-```cpp
-// 设置断点验证主循环逻辑
-Maybe<ExitCode> SpinEventLoopInternal(Environment* env) {
-  do {
-    uv_run(env->event_loop(), UV_RUN_DEFAULT);  // 断点 A
-    platform->DrainTasks(isolate);             // 断点 B
-    more = uv_loop_alive(env->event_loop());   // 断点 C
-  } while (more == true && !env->is_stopping());
-}
+### 1. 启动调试会话
+
+1. 确保已编译调试版本:
+   ```bash
+   ./configure --debug --ninja
+   make JOBS=$(sysctl -n hw.ncpu)  # macOS
+   make JOBS=$(nproc)              # Linux
+   ```
+
+2. 在 VS Code 中打开 `analysis/debug-event-loop.js`
+
+3. 按 `F5` 选择相应的调试配置
+
+### 2. 验证启动流程
+
+观察断点命中顺序应该是:
+```
+node::Start() 
+  → StartInternal()
+  → NodeMainInstance::Run()
+  → SpinEventLoopInternal()  // 第一个断点
 ```
 
-### 2. 平台任务处理
-**文件**: `src/node_platform.cc`
-**函数**: `DrainTasks`
-```cpp
-void NodePlatform::DrainTasks(Isolate* isolate) {
-  do {
-    worker_thread_task_runner_->BlockingDrain();  // 断点 D
-  } while (per_isolate->FlushForegroundTasksInternal()); // 断点 E
-}
-```
+### 3. 验证事件循环流程
 
-### 3. 前台任务队列
-**文件**: `src/node_platform.cc`
-**函数**: `FlushForegroundTasksInternal`
-```cpp
-bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
-  // 处理延迟任务 (setTimeout/setInterval)
-  auto delayed_tasks = foreground_delayed_tasks_.Lock().PopAll(); // 断点 F
-  
-  // 处理立即任务 (Promise 微任务)
-  auto tasks = foreground_tasks_.Lock().PopAll(); // 断点 G
-}
-```
+在 `SpinEventLoopInternal` 断点处:
 
-## 验证流程
+1. **检查初始状态**:
+   ```lldb
+   # macOS
+   (lldb) frame variable env
+   (lldb) frame variable platform
+   (lldb) frame variable isolate
+   ```
+   
+   ```gdb
+   # Linux
+   (gdb) info locals
+   (gdb) print env
+   (gdb) print platform
+   ```
 
-### 1. 执行顺序验证
+2. **单步执行到 uv_run**:
+   ```lldb
+   (lldb) step
+   # 观察 libuv 事件循环的执行
+   ```
+
+3. **观察 DrainTasks 调用**:
+   - 继续执行到 `platform->DrainTasks(isolate)` 
+   - 断点应该命中 `NodePlatform::DrainTasks`
+
+4. **验证任务刷新**:
+   - 在 `DrainTasks` 中继续执行
+   - 断点应该命中 `FlushForegroundTasksInternal`
+
+### 4. 验证任务调度
+
+在 `FlushForegroundTasksInternal` 断点处:
+
+1. **检查延迟任务队列**:
+   ```lldb
+   (lldb) frame variable delayed_tasks_to_schedule
+   (lldb) expression delayed_tasks_to_schedule.size()
+   ```
+
+2. **检查立即任务队列**:
+   ```lldb
+   (lldb) frame variable tasks
+   (lldb) expression tasks.size()
+   ```
+
+3. **观察任务执行**:
+   ```lldb
+   (lldb) step
+   # 观察 RunForegroundTask 的调用
+   ```
+
+## 执行顺序验证
+
+### 预期输出顺序
 运行调试脚本，观察输出顺序：
 ```
 1. 同步代码开始
@@ -175,7 +404,15 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
 6. setImmediate 回调执行       ← Check 阶段
 ```
 
-### 2. 性能监控
+### 任务调度优先级
+1. **微任务** (在 `FlushForegroundTasksInternal` 中的立即任务队列)
+2. **I/O 回调** (由 `uv_run` 处理)
+3. **定时器回调** (延迟任务队列转换为 libuv timer)
+4. **setImmediate 回调** (check 阶段)
+
+## 性能监控和分析
+
+### 1. 性能监控
 ```javascript
 // 监控事件循环延迟
 const startTime = process.hrtime.bigint();
@@ -185,7 +422,7 @@ setImmediate(() => {
 });
 ```
 
-### 3. 内存使用跟踪
+### 2. 内存使用跟踪
 ```javascript
 const memBefore = process.memoryUsage();
 // 执行异步操作
@@ -196,6 +433,25 @@ setTimeout(() => {
     heapUsed: memAfter.heapUsed - memBefore.heapUsed
   });
 }, 0);
+```
+
+### 3. 使用性能分析工具
+
+#### macOS - Instruments
+```bash
+# 启动 Instruments 进行性能分析
+instruments -t "Time Profiler" out/Debug/node analysis/debug-event-loop.js
+```
+
+#### Linux - perf
+```bash
+# 安装 perf 工具
+sudo apt-get install linux-tools-generic  # Ubuntu
+sudo yum install perf                      # CentOS
+
+# 性能分析
+perf record ./out/Debug/node analysis/debug-event-loop.js
+perf report
 ```
 
 ## 常见调试技巧
@@ -225,21 +481,62 @@ function monitorHandles() {
 node --async-stack-traces analysis/debug-event-loop.js
 ```
 
-## 故障排除
+### 4. 符号表处理
 
-### 1. 符号信息缺失
+#### macOS
 ```bash
-# 确保编译时包含调试符号
-./configure --debug --enable-static
-make -j4
+# 生成调试符号
+dsymutil out/Debug/node
+
+# 查看符号信息
+nm -D out/Debug/node | grep -i event
 ```
 
-### 2. 断点不触发
+#### Linux
+```bash
+# 查看符号信息
+objdump -t out/Debug/node | grep -i event
+readelf -s out/Debug/node | grep -i event
+```
+
+## 故障排除
+
+### 1. 编译错误
+```bash
+# 清理编译缓存
+make distclean
+./configure --debug --ninja
+make JOBS=$(sysctl -n hw.ncpu)  # macOS
+make JOBS=$(nproc)              # Linux
+```
+
+### 2. 符号信息缺失
+```bash
+# 确保编译时包含调试符号
+./configure --debug --enable-static --ninja
+make JOBS=$(sysctl -n hw.ncpu)  # macOS
+make JOBS=$(nproc)              # Linux
+```
+
+### 3. 断点不触发
 - 确保使用正确的函数名
 - 检查 Node.js 版本兼容性
 - 验证编译配置
 
-### 3. 调试器连接问题
+#### 验证符号加载
+```lldb
+# macOS
+(lldb) image lookup --name SpinEventLoopInternal
+(lldb) target symbols add out/Debug/node.dSYM
+```
+
+```gdb
+# Linux
+(gdb) info functions SpinEventLoopInternal
+(gdb) symbol-file out/Debug/node
+```
+
+### 4. 调试器连接问题
 ```bash
 # 检查 inspector 端口
 netstat -an | grep 9229
@@ -248,4 +545,97 @@ netstat -an | grep 9229
 node --inspect=9230 analysis/debug-event-loop.js
 ```
 
-通过这些调试方法，你可以深入理解 Node.js 事件循环的执行流程，验证理论分析的正确性。
+### 5. 权限问题
+
+#### macOS
+```bash
+# 给调试器必要权限
+sudo chmod +x out/Debug/node
+codesign --force --deep --sign - out/Debug/node
+
+# 系统完整性保护 (SIP) 检查
+csrutil status
+```
+
+#### Linux
+```bash
+# 设置 ptrace 权限
+echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+```
+
+### 6. 内存调试
+
+#### 使用 Address Sanitizer
+```bash
+# macOS
+export CC=clang CXX=clang++
+./configure --debug --enable-asan --ninja
+make JOBS=$(sysctl -n hw.ncpu)
+
+# Linux
+export CC=gcc CXX=g++
+./configure --debug --enable-asan --ninja
+make JOBS=$(nproc)
+```
+
+#### 使用 Valgrind (Linux)
+```bash
+# 安装 Valgrind
+sudo apt-get install valgrind  # Ubuntu
+sudo yum install valgrind      # CentOS
+
+# 运行内存检查
+valgrind --tool=memcheck --leak-check=full ./out/Debug/node analysis/debug-event-loop.js
+```
+
+## 验证调试环境
+
+运行以下命令验证环境配置：
+
+```bash
+# 1. 验证 Node.js 编译
+./out/Debug/node --version
+
+# 2. 验证调试符号 (macOS)
+lldb ./out/Debug/node -o "target symbols list" -o quit
+
+# 2. 验证调试符号 (Linux)
+gdb ./out/Debug/node -ex "info functions" -ex quit
+
+# 3. 运行调试测试
+node analysis/debug-event-loop.js
+
+# 4. 测试 VS Code 调试
+code . # 打开 VS Code，按 F5 测试调试配置
+```
+
+## 性能优化建议
+
+### 1. 编译优化
+```bash
+# 使用 ccache 加速重新编译
+export CC="ccache clang"
+export CXX="ccache clang++"
+./configure --debug --ninja
+```
+
+### 2. 调试优化
+```bash
+# 限制调试输出
+export NODE_DEBUG=
+
+# 使用更快的调试版本
+./configure --debug-node --ninja
+```
+
+## 总结
+
+通过这套调试配置，可以完整验证:
+
+1. **Node.js 启动流程**: 从 main() 到事件循环启动
+2. **事件循环机制**: libuv 与 V8 任务调度的协调
+3. **任务优先级**: 微任务、宏任务、I/O 的执行顺序
+4. **性能特征**: 任务队列大小对循环性能的影响
+5. **跨平台兼容**: 支持 macOS、Linux 和 Windows 的调试
+
+这为深入理解 Node.js 内部机制和性能优化提供了强有力的工具，帮助开发者从多个层面分析和调试 Node.js 应用。
