@@ -7,7 +7,6 @@
 *.sdf
 *.suo
 .vs/
-.vscode/
 *.VC.db
 *.VC.opendb
 core
