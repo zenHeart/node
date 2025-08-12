@@ -1,0 +1,22 @@
+{
+  "files.associations": {
+    "*.dbclient-js": "javascript",
+    "*.cjson": "jsonc",
+    "*.wxss": "css",
+    "*.wxs": "javascript",
+    "*.mdc": "markdown",
+    "optional": "cpp",
+    "__hash_table": "cpp",
+    "__tree": "cpp",
+    "array": "cpp",
+    "complex": "cpp",
+    "type_traits": "cpp",
+    "forward_list": "cpp",
+    "limits": "cpp",
+    "ratio": "cpp",
+    "variant": "cpp",
+    "typeindex": "c",
+    "typeinfo": "c",
+    "*.inc": "c"
+  }
+}

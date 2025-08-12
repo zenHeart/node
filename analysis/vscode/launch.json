@@ -1,0 +1,439 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "调试用户 JavaScript (当前文件)",
+      "type": "node",
+      "request": "launch",
+      "program": "${file}",
+      "runtimeExecutable": "${workspaceFolder}/out/Debug/node",
+      "runtimeArgs": ["--enable-source-maps"],
+      "console": "integratedTerminal",
+      "sourceMaps": true,
+      "stopOnEntry": true,
+      "restart": true,
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/lib/**",
+        "${workspaceFolder}/deps/**",
+        "${workspaceFolder}/src/**"
+      ],
+      "smartStep": true,
+      "autoAttachChildProcesses": false,
+      "env": {
+        "NODE_DEBUG": "",
+        "NODE_OPTIONS": "--enable-source-maps"
+      },
+      "outFiles": [
+        "${workspaceFolder}/analysis/**/*.js",
+        "${workspaceFolder}/test/**/*.js",
+        "!${workspaceFolder}/node_modules/**",
+        "!${workspaceFolder}/lib/**",
+        "!${workspaceFolder}/deps/**",
+        "!${workspaceFolder}/src/**"
+      ],
+      "presentation": {
+        "group": "User Code Debug",
+        "order": 1
+      }
+    },
+    {
+      "name": "调试用户 JavaScript (指定文件)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/analysis/setImmediate/simple.js",
+      "runtimeExecutable": "${workspaceFolder}/out/Debug/node",
+      "runtimeArgs": ["--enable-source-maps"],
+      "console": "integratedTerminal",
+      "sourceMaps": true,
+      "stopOnEntry": true,
+      "restart": true,
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/lib/**",
+        "${workspaceFolder}/deps/**",
+        "${workspaceFolder}/src/**"
+      ],
+      "smartStep": true,
+      "autoAttachChildProcesses": false,
+      "env": {
+        "NODE_DEBUG": "",
+        "NODE_OPTIONS": "--enable-source-maps"
+      },
+      "outFiles": [
+        "${workspaceFolder}/analysis/**/*.js",
+        "${workspaceFolder}/test/**/*.js",
+        "!${workspaceFolder}/node_modules/**",
+        "!${workspaceFolder}/lib/**",
+        "!${workspaceFolder}/deps/**",
+        "!${workspaceFolder}/src/**"
+      ],
+      "presentation": {
+        "group": "User Code Debug",
+        "order": 2
+      }
+    },
+    {
+      "name": "调试 Node.js JavaScript (当前文件)",
+      "type": "node",
+      "request": "launch",
+      "program": "${file}",
+      "runtimeExecutable": "${workspaceFolder}/out/Debug/node",
+      "runtimeArgs": ["--enable-source-maps", "--inspect-brk=0"],
+      "console": "integratedTerminal",
+      "sourceMaps": true,
+      "stopOnEntry": true,
+      "restart": true,
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/lib/**",
+        "${workspaceFolder}/deps/**"
+      ],
+      "smartStep": true,
+      "autoAttachChildProcesses": false,
+      "env": {
+        "NODE_DEBUG": "",
+        "NODE_OPTIONS": "--enable-source-maps"
+      },
+      "outFiles": [
+        "${workspaceFolder}/**/*.js",
+        "!${workspaceFolder}/node_modules/**",
+        "!${workspaceFolder}/lib/**",
+        "!${workspaceFolder}/deps/**"
+      ],
+      "presentation": {
+        "group": "Node.js Internal Debug",
+        "order": 3
+      }
+    },
+    {
+      "name": "调试 Node.js JavaScript (指定文件)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/analysis/debug-event-loop.js",
+      "runtimeExecutable": "${workspaceFolder}/out/Debug/node",
+      "runtimeArgs": ["--enable-source-maps", "--inspect-brk=0"],
+      "console": "integratedTerminal",
+      "sourceMaps": true,
+      "stopOnEntry": true,
+      "restart": true,
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/lib/**",
+        "${workspaceFolder}/deps/**"
+      ],
+      "smartStep": true,
+      "autoAttachChildProcesses": false,
+      "env": {
+        "NODE_DEBUG": "",
+        "NODE_OPTIONS": "--enable-source-maps"
+      },
+      "outFiles": [
+        "${workspaceFolder}/**/*.js",
+        "!${workspaceFolder}/node_modules/**",
+        "!${workspaceFolder}/lib/**",
+        "!${workspaceFolder}/deps/**"
+      ],
+      "presentation": {
+        "group": "Node.js Internal Debug",
+        "order": 4
+      }
+    },
+    {
+      "name": "VS Code 内部混合调试 (当前文件)",
+      "type": "node",
+      "request": "launch",
+      "program": "${file}",
+      "runtimeExecutable": "${workspaceFolder}/out/Debug/node",
+      "runtimeArgs": ["--enable-source-maps", "--inspect-brk=0"],
+      "console": "integratedTerminal",
+      "sourceMaps": true,
+      "stopOnEntry": true,
+      "restart": true,
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/lib/**",
+        "${workspaceFolder}/deps/**"
+      ],
+      "smartStep": true,
+      "autoAttachChildProcesses": false,
+      "env": {
+        "NODE_DEBUG": "",
+        "NODE_OPTIONS": "--enable-source-maps"
+      },
+      "outFiles": [
+        "${workspaceFolder}/**/*.js",
+        "!${workspaceFolder}/node_modules/**",
+        "!${workspaceFolder}/lib/**",
+        "!${workspaceFolder}/deps/**"
+      ],
+      "serverReadyAction": {
+        "pattern": "Debugger listening on ([^\\s]+)",
+        "uriFormat": "%s",
+        "action": "openExternally"
+      }
+    },
+    {
+      "name": "VS Code 内部混合调试 (指定文件)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/analysis/debug-event-loop.js",
+      "runtimeExecutable": "${workspaceFolder}/out/Debug/node",
+      "runtimeArgs": ["--enable-source-maps", "--inspect-brk=0"],
+      "console": "integratedTerminal",
+      "sourceMaps": true,
+      "stopOnEntry": true,
+      "restart": true,
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/lib/**",
+        "${workspaceFolder}/deps/**"
+      ],
+      "smartStep": true,
+      "autoAttachChildProcesses": false,
+      "env": {
+        "NODE_DEBUG": "",
+        "NODE_OPTIONS": "--enable-source-maps"
+      },
+      "outFiles": [
+        "${workspaceFolder}/**/*.js",
+        "!${workspaceFolder}/node_modules/**",
+        "!${workspaceFolder}/lib/**",
+        "!${workspaceFolder}/deps/**"
+      ],
+      "serverReadyAction": {
+        "pattern": "Debugger listening on ([^\\s]+)",
+        "uriFormat": "%s",
+        "action": "openExternally"
+      }
+    },
+    {
+      "name": "C++ 调试 (macOS - 当前文件)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/out/Debug/node",
+      "args": ["--enable-source-maps", "${file}"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "lldb",
+      "osx": {
+        "MIMode": "lldb"
+      },
+      "setupCommands": [
+        {
+          "description": "设置断点在 Node.js 启动入口",
+          "text": "breakpoint set --name node::Start",
+          "ignoreFailures": true
+        },
+        {
+          "description": "设置断点在主实例运行",
+          "text": "breakpoint set --name node::NodeMainInstance::Run",
+          "ignoreFailures": true
+        },
+        {
+          "description": "设置断点在 SpinEventLoopInternal",
+          "text": "breakpoint set --name SpinEventLoopInternal",
+          "ignoreFailures": false
+        },
+        {
+          "description": "设置断点在 DrainTasks",
+          "text": "breakpoint set --name node::NodePlatform::DrainTasks",
+          "ignoreFailures": false
+        },
+        {
+          "description": "设置断点在 FlushForegroundTasksInternal", 
+          "text": "breakpoint set --name node::PerIsolatePlatformData::FlushForegroundTasksInternal",
+          "ignoreFailures": false
+        },
+        {
+          "description": "启用源码级调试",
+          "text": "settings set target.source-map /usr/include ${workspaceFolder}/src",
+          "ignoreFailures": true
+        }
+      ]
+    },
+    {
+      "name": "C++ 调试 (macOS - 指定文件)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/out/Debug/node",
+      "args": ["--enable-source-maps", "${workspaceFolder}/analysis/debug-event-loop.js"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "lldb",
+      "osx": {
+        "MIMode": "lldb"
+      },
+      "setupCommands": [
+        {
+          "description": "设置断点在 Node.js 启动入口",
+          "text": "breakpoint set --name node::Start",
+          "ignoreFailures": true
+        },
+        {
+          "description": "设置断点在主实例运行",
+          "text": "breakpoint set --name node::NodeMainInstance::Run",
+          "ignoreFailures": true
+        },
+        {
+          "description": "设置断点在 SpinEventLoopInternal",
+          "text": "breakpoint set --name SpinEventLoopInternal",
+          "ignoreFailures": false
+        },
+        {
+          "description": "设置断点在 DrainTasks",
+          "text": "breakpoint set --name node::NodePlatform::DrainTasks",
+          "ignoreFailures": false
+        },
+        {
+          "description": "设置断点在 FlushForegroundTasksInternal", 
+          "text": "breakpoint set --name node::PerIsolatePlatformData::FlushForegroundTasksInternal",
+          "ignoreFailures": false
+        },
+        {
+          "description": "启用源码级调试",
+          "text": "settings set target.source-map /usr/include ${workspaceFolder}/src",
+          "ignoreFailures": true
+        }
+      ]
+    },
+    {
+      "name": "C++ 调试 (Linux/Windows - 当前文件)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/out/Debug/node",
+      "args": ["--enable-source-maps", "${file}"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "linux": {
+        "MIMode": "gdb"
+      },
+      "windows": {
+        "MIMode": "gdb"
+      },
+      "setupCommands": [
+        {
+          "description": "为 gdb 启用整齐打印",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        {
+          "description": "设置断点在 SpinEventLoopInternal",
+          "text": "break SpinEventLoopInternal",
+          "ignoreFailures": false
+        },
+        {
+          "description": "设置断点在 DrainTasks",
+          "text": "break node::NodePlatform::DrainTasks",
+          "ignoreFailures": false
+        },
+        {
+          "description": "设置断点在 FlushForegroundTasksInternal", 
+          "text": "break node::PerIsolatePlatformData::FlushForegroundTasksInternal",
+          "ignoreFailures": false
+        }
+      ]
+    },
+    {
+      "name": "C++ 调试 (Linux/Windows - 指定文件)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/out/Debug/node",
+      "args": ["--enable-source-maps", "${workspaceFolder}/analysis/debug-event-loop.js"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "linux": {
+        "MIMode": "gdb"
+      },
+      "windows": {
+        "MIMode": "gdb"
+      },
+      "setupCommands": [
+        {
+          "description": "为 gdb 启用整齐打印",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        {
+          "description": "设置断点在 SpinEventLoopInternal",
+          "text": "break SpinEventLoopInternal",
+          "ignoreFailures": false
+        },
+        {
+          "description": "设置断点在 DrainTasks",
+          "text": "break node::NodePlatform::DrainTasks",
+          "ignoreFailures": false
+        },
+        {
+          "description": "设置断点在 FlushForegroundTasksInternal", 
+          "text": "break node::PerIsolatePlatformData::FlushForegroundTasksInternal",
+          "ignoreFailures": false
+        }
+      ]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "VS Code 混合调试 (macOS - 当前文件)",
+      "configurations": [
+        "C++ 调试 (macOS - 当前文件)",
+        "VS Code 内部混合调试 (当前文件)"
+      ],
+      "stopAll": true,
+      "presentation": {
+        "hidden": false,
+        "group": "Mixed Debugging",
+        "order": 1
+      }
+    },
+    {
+      "name": "VS Code 混合调试 (macOS - 指定文件)",
+      "configurations": [
+        "C++ 调试 (macOS - 指定文件)",
+        "VS Code 内部混合调试 (指定文件)"
+      ],
+      "stopAll": true,
+      "presentation": {
+        "hidden": false,
+        "group": "Mixed Debugging",
+        "order": 2
+      }
+    },
+    {
+      "name": "VS Code 混合调试 (Linux - 当前文件)",
+      "configurations": [
+        "C++ 调试 (Linux/Windows - 当前文件)",
+        "VS Code 内部混合调试 (当前文件)"
+      ],
+      "stopAll": true,
+      "presentation": {
+        "hidden": false,
+        "group": "Mixed Debugging",
+        "order": 3
+      }
+    },
+    {
+      "name": "VS Code 混合调试 (Linux - 指定文件)",
+      "configurations": [
+        "C++ 调试 (Linux/Windows - 指定文件)",
+        "VS Code 内部混合调试 (指定文件)"
+      ],
+      "stopAll": true,
+      "presentation": {
+        "hidden": false,
+        "group": "Mixed Debugging",
+        "order": 4
+      }
+    }
+  ]
+}
